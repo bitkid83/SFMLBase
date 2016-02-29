@@ -8,8 +8,9 @@
 #include "main.h"
 #include "entity.h"
 
+static sf::RenderWindow *window = 0;
 static sf::Vector2i g_MousePos;
-sf::CircleShape shape;
+sf::CircleShape mouseShape;
 sf::Font myFont;		
 sf::Text myText;
 sf::Text fpsText;
@@ -18,8 +19,9 @@ std::string fpsString;
 sf::Drawable *g_RenderObjects[MAX_DRAWABLES];
 int frameCount = 0;
 float fps = 0.f;
+float ms = 0.f;
 
-Entity *g_edict[MAX_ENTITIES];
+//Entity *g_edict;
 
 int main(int argc, char *argv[])
 {
@@ -27,15 +29,16 @@ int main(int argc, char *argv[])
 	int entityCount = 0;
 
 	// create a new SFML window context
-	sf::RenderWindow window(sf::VideoMode(800, 600, 32), "SFMLBase", sf::Style::Close);
-	window.setMouseCursorVisible(false);
+	window = new sf::RenderWindow(sf::VideoMode(800, 600, 32), "SFMLBase", sf::Style::Close);
+	//sf::RenderWindow window(sf::VideoMode(800, 600, 32), "SFMLBase", sf::Style::Close);
+	window->setMouseCursorVisible(false);
 
 	// create an SFML circle shape, set it's position and color	
-	shape.setRadius(10.f);
-	shape.setPosition(160, 120);
-	shape.setFillColor(sf::Color::Green);
+	mouseShape.setRadius(10.f);
+	mouseShape.setPosition(160, 120);
+	mouseShape.setFillColor(sf::Color::Green);
 		
-	g_RenderObjects[drawableCount] = &shape;
+	g_RenderObjects[drawableCount] = &mouseShape;
 	++drawableCount;
 
 	// Load a font...
@@ -64,79 +67,67 @@ int main(int argc, char *argv[])
 	g_RenderObjects[drawableCount] = &fpsText;
 	drawableCount++;
 	
+	Init_Entities();	
+
 	sf::Clock gameTimer;
 
 	// SFML main window loop
-	while (window.isOpen()) {
+	while (window->isOpen()) {
 		sf::Clock frameTimer;
 		sf::Event evt;
 		// SFML event loop
-		while (window.pollEvent(evt)) {
+		while (window->pollEvent(evt)) {
 			switch (evt.type) {
 
 			case sf::Event::Closed:
-				window.close();
+				window->close();
 				break;
 
 			case sf::Event::MouseMoved:
 			{
 				sf::Vector2f circlePos(0.f, 0.f);
 				// todo(paul): find out why SFML is getting mouse position in absolute coordinates, not window coords
-				g_MousePos = sf::Mouse::getPosition(window);
-				circlePos.x = g_MousePos.x - shape.getRadius();
-				circlePos.y = g_MousePos.y - shape.getRadius();
+				g_MousePos = sf::Mouse::getPosition(*window);
+				circlePos.x = g_MousePos.x - mouseShape.getRadius();
+				circlePos.y = g_MousePos.y - mouseShape.getRadius();
 				// construct a string from the mouse position values, set SFML text value to the string
 				mousePosString = "X: " + std::to_string(g_MousePos.x) + ", Y: " + std::to_string(g_MousePos.y);
 				myText.setString(mousePosString);
-				shape.setPosition(circlePos);
+				mouseShape.setPosition(circlePos);
 				break;
 			}
 
 			case::sf::Event::MouseButtonPressed:
-				if (evt.mouseButton.button == sf::Mouse::Button::Left) {					
-					Entity *e = new Entity();
-					e->SetSize(sf::Vector2f(10.f, 10.f));
-					e->SetPosition(static_cast<sf::Vector2f>(sf::Vector2f(g_MousePos)));
-					g_edict[entityCount] = e;
-					++entityCount;
+				if (evt.mouseButton.button == sf::Mouse::Button::Left) {
+					Create_Entity(static_cast<sf::Vector2f>(sf::Vector2f(g_MousePos)), sf::Vector2f(0.f, 0.f));
 				}
 				break;
 			
 			case sf::Event::KeyPressed:			
 				if (evt.key.code == sf::Keyboard::Escape) {
-					window.close();
+					window->close();
 				}
 				break;			
 			}
 		}		
 		
 		// clear the window contents
-		window.clear();
+		window->clear();
 
 		// render the pre-defined drawable objects
 		for (int i = 0; i < drawableCount; i++) {
-			if (g_RenderObjects[i] != NULL) {
-				window.draw(*g_RenderObjects[i]);
+			if (g_RenderObjects[i] != nullptr) {
+				window->draw(*g_RenderObjects[i]);
 			}
 		}
 
-		// render the entities created by the user
-		for (int j = 0; j < MAX_ENTITIES; j++) {
-			if (g_edict[j] != NULL) {
-				window.draw(*g_edict[j]->m_EntityRect);
-			}
-		}
-		// if we create too many entities, overwrite the first entity
-		if (entityCount == MAX_ENTITIES)
-		{
-			entityCount = 0;
-		}
+		Render_Entities(window, ms);
 
 		// blit everything to the window
-		window.display();
+		window->display();
 
 		// if duration of frame doesn't hit the targeted time (1 / MAX_FPS), round it up		
-		float ms = (float)(frameTimer.getElapsedTime().asSeconds() / 1000.f);		
+		ms = (float)(frameTimer.getElapsedTime().asSeconds() / 1000.f);		
 		while (ms < deltaTime) {
 			ms += 0.0001;
 		}			
